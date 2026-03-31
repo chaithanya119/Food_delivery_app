@@ -22,7 +22,6 @@ function getImage(name) {
     'Mango Lassi':          'https://annikaeats.com/wp-content/uploads/2024/03/DSC_1071.jpg',
     'Masala Chai':          'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSZ77qN95IL_ZpIb7rnbE6ohLFDkVYEnt1_0g&s',
     'Buttermilk':           'https://www.trulydesi.in/cdn/shop/articles/3_8a1a3548-3fa6-4fe2-9209-8a0e0ca96032.jpg?v=1758521132',
-    // extras with fallback images
     'Poha':                 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/06/Poha.jpg/640px-Poha.jpg',
     'Dal Tadka + Rice':     'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Dal_fry.jpg/640px-Dal_fry.jpg',
     'Sambar Rice':          'https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/Rasam_rice.jpg/640px-Rasam_rice.jpg',
@@ -38,29 +37,35 @@ function getImage(name) {
     'https://placehold.co/640x480/FFF3E0/E8630A?text=' + encodeURIComponent(name);
 }
 
+const API = process.env.REACT_APP_API_URL || '';
+
 export default function MenuPage() {
   const [items,      setItems]      = useState([]);
   const [categories, setCategories] = useState([]);
   const [activeCat,  setActiveCat]  = useState('');
   const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState('');
   const { addToCart } = useCart();
 
   useEffect(() => {
-    axios.get('/api/categories')
-      .then(r => setCategories(r.data.categories))
-      .catch(() => {});
+    axios.get(API + '/api/categories')
+      .then(r => setCategories(r.data.categories || []))
+      .catch(() => setCategories([]));
     loadMenu('');
   }, []);
 
   const loadMenu = async (cat) => {
     setLoading(true);
+    setError('');
     try {
       const url = cat
-        ? '/api/menu?category=' + encodeURIComponent(cat)
-        : '/api/menu';
+        ? API + '/api/menu?category=' + encodeURIComponent(cat)
+        : API + '/api/menu';
       const res = await axios.get(url);
-      setItems(res.data.items);
+      setItems(res.data.items || []);
     } catch {
+      setError('Could not load menu. Please wait and try again.');
+      setItems([]);
       toast.error('Could not load menu. Make sure server is running.');
     } finally {
       setLoading(false);
@@ -120,7 +125,9 @@ export default function MenuPage() {
       {/* ── MENU GRID ────────────────────────────────────── */}
       <div className="menu-grid">
         {loading ? (
-          <div className="loading-text">🍽️ Loading menu...</div>
+          <div className="loading-text">🍽️ Loading menu... (may take 60 seconds on first load)</div>
+        ) : error ? (
+          <div className="loading-text">⚠️ {error} <button onClick={() => loadMenu(activeCat)}>Retry</button></div>
         ) : !items.length ? (
           <div className="loading-text">No items found.</div>
         ) : (
